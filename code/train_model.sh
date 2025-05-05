@@ -16,6 +16,8 @@ source /cfs/earth/scratch/klaveflo/venvs/PA1/bin/activate
 
 cd /cfs/earth/scratch/klaveflo/PA1
 
+export LD_LIBRARY_PATH=/cfs/earth/scratch/klaveflo/venvs/PA1/lib/python3.9/site-packages/nvidia/cudnn/lib:$LD_LIBRARY_PATH
+
 python code/model_hpc.py
 
 

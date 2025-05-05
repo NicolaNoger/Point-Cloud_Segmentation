@@ -10,6 +10,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 from collections import defaultdict
 
+print("LD_LIBRARY_PATH:", os.environ.get("LD_LIBRARY_PATH", "not set"))
 
 # Check for GPUs
 gpus = tf.config.list_physical_devices('GPU')
