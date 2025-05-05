@@ -8,18 +8,21 @@ import numpy as np
 
 
 
-def concat_pointcloud(directory, chunk_size=1000):
+def concat_pointcloud(directory, chunk_size=100000, save_npy=False, out_dir="processed", tile_name="all_tiles"):
     """
         Loads multiple .las files, processes them in manageable chunks, and aggregates
-        the results into a single NumPy array for further analysis.
+        the results into a single NumPy array and optionally saves it.
 
         Arguments: 
             directory:      Path to the data
-            chunk_size:     How many Points are processed at a time, default is 100000
+            chunk_size:     Number of points processed at a time
+            save_npy:       If True, saves .npy files for points and labels
+            out_dir:        Output directory for .npy files
+            tile_name:      Basename for saved files
 
         Returns:
-            df:             DataFrame with all points from all files with headers
-            points_array:   NumPy array with all points from all files
+            df:             DataFrame with all points
+            points_array:   NumPy array with all points
     """
     files = [os.path.join(directory, f) for f in os.listdir(directory)
              if f.endswith(".las") or f.endswith(".laz")]
@@ -55,14 +58,29 @@ def concat_pointcloud(directory, chunk_size=1000):
             start = end
 
     if not all_points:
-        raise ValueError("Keine Punktdaten gefunden prüfe deine .las/.laz-Dateien.")
+        raise ValueError("Keine Punktdaten gefunden, prüfe deine .las/.laz-Dateien.")
 
     points_array = np.vstack(all_points)
     df = pd.DataFrame(points_array, columns=header)
 
+    # Optional: .npy speichern
+    if save_npy:
+        os.makedirs(out_dir, exist_ok=True)
+        
+        # Feature-Columns, z. B. ohne gps_time oder user_data (falls nicht gebraucht)
+        try:
+            feature_cols = ["X", "Y", "Z", "intensity", "return_number", "number_of_returns"]
+            label_col = "classification"
+            features = df[feature_cols].to_numpy()
+            labels = df[label_col].to_numpy().astype(np.int32)
+
+            np.save(os.path.join(out_dir, f"{tile_name}_points.npy"), features)
+            np.save(os.path.join(out_dir, f"{tile_name}_labels.npy"), labels)
+            print(f"Gespeichert: {tile_name}_points.npy und {tile_name}_labels.npy")
+        except KeyError as e:
+            print(f"Fehlende Spalte zum Speichern: {e}")
+
     return df, points_array
-
-
 
 
 def model_3d(df, point_size=1, dtype="laz"):
