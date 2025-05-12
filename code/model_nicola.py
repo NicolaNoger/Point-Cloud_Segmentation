@@ -1,89 +1,81 @@
 import os
-import glob
-import pandas as pd
 import numpy as np
-import laspy
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
-from tensorflow.keras import layers, models
-from collections import defaultdict
+from pointnet2.models import pointnet2_sem_seg
+from pointnet2.utils import provider
 
 
-def concat_pointcloud(directory, chunk_size=100000, save_npy=False, out_dir="processed", tile_name="all_tiles"):
-    """
-        Loads multiple .las files, processes them in manageable chunks, and aggregates
-        the results into a single NumPy array and optionally saves it.
+# === KONFIGURATION ===
+NUM_CLASSES = 9  # z. B. Wasser, Boden, Vegetation, Gebäude, etc.
+NUM_POINT = 4096
+BATCH_SIZE = 16
+EPOCHS = 5
+LEARNING_RATE = 0.001
 
-        Arguments: 
-            directory:      Path to the data
-            chunk_size:     Number of points processed at a time
-            save_npy:       If True, saves .npy files for points and labels
-            out_dir:        Output directory for .npy files
-            tile_name:      Basename for saved files
-
-        Returns:
-            df:             DataFrame with all points
-            points_array:   NumPy array with all points
-    """
-    files = [os.path.join(directory, f) for f in os.listdir(directory)
-             if f.endswith(".las") or f.endswith(".laz")]
-    all_points = []
-    header = []
-
-    for file in tqdm(files, desc="Lade .las-Dateien"):
-        las = laspy.read(file)
-        dims = list(las.points.point_format.dimension_names)
-        scale = las.header.scale
-        offset = las.header.offset
-        if not header:
-            header = dims
-        total_points = len(las.points)
-
-        start = 0
-        while start < total_points:
-            end = min(start + chunk_size, total_points)
-            chunk_data = []
-            for d in dims:
-                data_array = np.array(las.points[d][start:end], dtype=float)
-                if d in ["X", "Y", "Z"]:
-                    idx = ["X", "Y", "Z"].index(d)
-                    data_array = data_array * scale[idx] + offset[idx]
-                if data_array.size == 0:
-                    break
-                chunk_data.append(data_array)
-            if len(chunk_data) != len(dims):
-                start = end
-                continue
-            chunk = np.vstack(chunk_data).T
-            all_points.append(chunk)
-            start = end
-
-    if not all_points:
-        raise ValueError("Keine Punktdaten gefunden prüfe deine .las/.laz-Dateien.")
-
-    points_array = np.vstack(all_points)
-    df = pd.DataFrame(points_array, columns=header)
-
-    # Optional: .npy speichern
-    if save_npy:
-        os.makedirs(out_dir, exist_ok=True)
-        
-        # Feature-Columns, z. B. ohne gps_time oder user_data (falls nicht gebraucht)
-        try:
-            feature_cols = ["X", "Y", "Z", "intensity", "return_number", "number_of_returns"]
-            label_col = "classification"
-            features = df[feature_cols].to_numpy()
-            labels = df[label_col].to_numpy().astype(np.int32)
-
-            np.save(os.path.join(out_dir, f"{tile_name}_points.npy"), features)
-            np.save(os.path.join(out_dir, f"{tile_name}_labels.npy"), labels)
-            print(f"Gespeichert: {tile_name}_points.npy und {tile_name}_labels.npy")
-        except KeyError as e:
-            print(f"Fehlende Spalte zum Speichern: {e}")
-
-    return df, points_array
+TRAIN_DIR = '/path/to/npy/train'
+VAL_DIR = '/path/to/npy/val'
 
 
+# === DATENLADEN ===
+def load_npy_dataset(directory):
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if f.endswith(".npy")]
+    def generator():
+        for file in files:
+            data = np.load(file, allow_pickle=True).item()
+            yield data['points'], data['labels']
+
+    return tf.data.Dataset.from_generator(
+        generator,
+        output_signature=(
+            tf.TensorSpec(shape=(NUM_POINT, None), dtype=tf.float32),
+            tf.TensorSpec(shape=(NUM_POINT,), dtype=tf.int32)
+        )
+    )
 
 
+def prepare_dataset(ds):
+    return (ds
+        .shuffle(100)
+        .batch(BATCH_SIZE)
+        .prefetch(tf.data.AUTOTUNE))
+
+train_ds = prepare_dataset(load_npy_dataset(TRAIN_DIR))
+val_ds = prepare_dataset(load_npy_dataset(VAL_DIR))
+
+
+# === MODELL ===
+model = pointnet2_sem_seg.get_model(NUM_CLASSES)
+loss_fn = pointnet2_sem_seg.get_loss()
+
+optimizer = tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE)
+
+
+# === TRAININGSLOOP ===
+@tf.function
+def train_step(points, labels):
+    with tf.GradientTape() as tape:
+        logits = model(points, training=True)
+        loss = loss_fn(logits, labels)
+    gradients = tape.gradient(loss, model.trainable_variables)
+    optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+    return loss
+
+@tf.function
+def val_step(points, labels):
+    logits = model(points, training=False)
+    loss = loss_fn(logits, labels)
+    return loss
+
+for epoch in range(EPOCHS):
+    print(f"Epoch {epoch+1}/{EPOCHS}")
+    train_loss = []
+    for points, labels in train_ds:
+        loss = train_step(points, labels)
+        train_loss.append(loss.numpy())
+
+    val_loss = []
+    for points, labels in val_ds:
+        loss = val_step(points, labels)
+        val_loss.append(loss.numpy())
+
+    print(f"Train loss: {np.mean(train_loss):.4f} | Val loss: {np.mean(val_loss):.4f}")
