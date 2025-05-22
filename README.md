@@ -94,7 +94,7 @@ $ pip install -r code/PointnetPP/requirements.txt
 ### 3.1 PointNet (Keras)
 This model is designed to run localy on CPU or GPU.
 
-The file `pointnet.ipynb` contains the data preprocessing and the full PointNet model. In addition there is an extended model testing on the different municipalities we chose to expore. 
+The file `pointnet.ipynb` contains the data preprocessing and the full PointNet model. In addition there is an extended model testing on the different municipalities we chose to explore. 
 
 The notebook `test_files_preparation.ipynb` crops the data to the desired regions of the cities, so it is ready for the analysis.
 
