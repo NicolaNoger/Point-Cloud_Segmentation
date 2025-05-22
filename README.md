@@ -23,6 +23,7 @@
 PA-1/
 ├── code/
 │   ├── PointNet/                  # 
+|   |   ├── environment.yml        #
 │   │   ├── label_map.json         #   
 │   │   ├── pointnet_segmentation.keras  #   
 │   │   ├── pointnet.ipynb         #   
