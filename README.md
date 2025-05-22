@@ -92,14 +92,14 @@ $ pip install -r code/PointnetPP/requirements.txt
 ## 3. Usage
 
 ### 3.1 PointNet (Keras)
-This model is designed to run localy on CPU.
+This model is designed to run localy on CPU or GPU.
 
 The file `pointnet.ipynb` contains the data preprocessing and the full PointNet model. In addition there is an extended model testing on the different municipalities we chose to expore. 
 
-The notebook `test_files_preparation.ipynb` crops the data to the desired regions of the cities, so it ready for the analysis.
+The notebook `test_files_preparation.ipynb` crops the data to the desired regions of the cities, so it is ready for the analysis.
 
 ### 3.2 PointNet++ (PyTorch)
-This model is set up to run on the ZHAW earth-cluster on GPU. The setup can also be made localy but should also run on GPU, but the CUDA and CUDNN versions should be checked. 
+This model is configured to run on the ZHAW earth-cluster on GPU. The setup can also be done locally but also there should run on GPU. Additionally, the CUDA and CUDNN versions need be checked to make sure it works correctly. 
 
 The notebook `Dataloader.ipynb` loads the LAZ data into train, val, test folder as .npy files. 
 
