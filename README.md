@@ -62,9 +62,19 @@ PA-1/
 ```bash
 # clone repo and enter
 $ git clone https://github.zhaw.ch/nogernic/PA-1.git && cd PA-1
+
+
 ```
 
-### 2.2 pointnetpp
+### 2.2 pointnet
+
+```bash
+#create a ennvironment with requironments
+conda env create -f environment.yml
+```
+
+
+### 2.3 pointnetpp
 
 ```bash
 # create a environment 
@@ -76,12 +86,7 @@ $ pip install -r code/PointnetPP/requirements.txt
 
 ```
 
-### 2.3 pointnet
 
-```bash
-#create a ennvironment with requironments
-conda env create -f environment.yml
-```
 
 
 ## 3. Usage
